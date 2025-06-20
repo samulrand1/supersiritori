@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>しりとりゲーム（AI難易度つき）</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-image: url('https://video.kurashiru.com/production/articles/fda43e08-0b80-491b-9424-ad137ecc6067/wide_thumbnail_normal.jpg?1696295603');
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+
+    .container {
+      background-color: rgba(0, 0, 0, 0.6);
+      margin: 50px auto;
+      padding: 20px;
+      max-width: 500px;
+      border-radius: 15px;
+      text-align: center;
+    }
+
+    input {
+      padding: 10px;
+      width: 60%;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px 5px;
+      border: none;
+      border-radius: 10px;
+      background-color: #ff6666;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #ff3333;
+    }
+
+    #history {
+      white-space: pre-line;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>しりとりゲーム</h1>
+
+    <!-- モード選択 -->
+    <div id="mode-select">
+      <p>モードを選んでください：</p>
+      <button onclick="selectAIMode()">AIと対戦</button>
+      <button onclick="startGame('pvp')">2人で対戦</button>
+    </div>
+
+    <!-- 難易度選択 -->
+    <div id="difficulty-select" style="display:none;">
+      <p>AIの難易度を選んでください：</p>
+      <button onclick="startGame('ai', 'easy')">やさしい</button>
+      <button onclick="startGame('ai', 'normal')">ふつう</button>
+      <button onclick="startGame('ai', 'hard')">つよい</button>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="game-area" style="display:none;">
+      <p id="history">最初の言葉を入力してください</p>
+      <input type="text" id="input-word" placeholder="ここに言葉を入力">
+      <button onclick="submitWord()">送信</button>
+    </div>
+  </div>
+
+  <script>
+    let mode = "";
+    let difficulty = "easy";
+    let lastWord = "";
+    let usedWords = [];
+    let isPlayer1Turn = true;
+
+    const easyWords = ["りんご", "ごりら", "らっぱ", "ぱんだ", "だるま"];
+    const normalWords = easyWords.concat(["まくら", "らいおん", "まんが", "がっこう", "うさぎ", "ぎんこう"]);
+    const hardWords = normalWords.concat([
+      "うみ", "みかん", "つばめ", "めがね", "ねこ", "こども", "もも", "もち", "ちず", "ずこう", "うどん", "たぬき", "きつね", "ねずみ"
+    ]);
+
+    function selectAIMode() {
+      document.getElementById("mode-select").style.display = "none";
+      document.getElementById("difficulty-select").style.display = "block";
+    }
+
+    function startGame(selectedMode, selectedDifficulty = "easy") {
+      mode = selectedMode;
+      difficulty = selectedDifficulty;
+      document.getElementById("mode-select").style.display = "none";
+      document.getElementById("difficulty-select").style.display = "none";
+      document.getElementById("game-area").style.display = "block";
+      document.getElementById("history").innerText = "最初の言葉を入力してください";
+      lastWord = "";
+      usedWords = [];
+      isPlayer1Turn = true;
+      document.getElementById("input-word").disabled = false;
+    }
+
+    function submitWord() {
+      const input = document.getElementById("input-word");
+      const word = input.value.trim();
+      const history = document.getElementById("history");
+
+      if (word === "") return;
+
+      if (lastWord && word[0] !== lastWord[lastWord.length - 1]) {
+        alert("前の言葉の最後の文字で始まる言葉を入力してください！");
+        return;
+      }
+
+      if (usedWords.includes(word)) {
+        alert("その言葉はすでに使われています！");
+        return;
+      }
+
+      if (word.endsWith("ん")) {
+        history.innerText += ` → ${word}\n「ん」で終わったのでゲームオーバー！`;
+        input.disabled = true;
+        return;
+      }
+
+      usedWords.push(word);
+      lastWord = word;
+      history.innerText += ` → ${word}`;
+      input.value = "";
+
+      if (mode === "ai") {
+        setTimeout(aiTurn, 500);
+      } else {
+        isPlayer1Turn = !isPlayer1Turn;
+        history.innerText += `\n${isPlayer1Turn ? "プレイヤー1" : "プレイヤー2"} の番です`;
+      }
+    }
+
+    function getWordList() {
+      switch (difficulty) {
+        case "easy": return easyWords;
+        case "normal": return normalWords;
+        case "hard": return hardWords;
+      }
+    }
+
+    function aiTurn() {
+      const history = document.getElementById("history");
+      const lastChar = lastWord[lastWord.length - 1];
+      const allWords = getWordList();
+
+      // 候補選定
+      let candidates = allWords.filter(w =>
+        w[0] === lastChar && !usedWords.includes(w)
+      );
+
+      // 難易度ごとの処理
+      if (difficulty !== "easy") {
+        // 「ん」で終わる単語を除外（normal以上）
+        candidates = candidates.filter(w => !w.endsWith("ん"));
+      }
+
+      if (difficulty === "hard") {
+        // 「出すと相手が返せない単語」を優先（擬似的な先読み）
+        candidates = candidates.filter(candidate => {
+          const nextChar = candidate[candidate.length - 1];
+          const nextOptions = allWords.filter(w =>
+            w[0] === nextChar &&
+            !usedWords.includes(w) &&
+            w !== candidate &&
+            !w.endsWith("ん")
+          );
+          return nextOptions.length > 0;
+        });
+      }
+
+      if (candidates.length === 0) {
+        history.innerText += `\nAIが降参しました！あなたの勝ち！`;
+        return;
+      }
+
+      const aiWord = candidates[Math.floor(Math.random() * candidates.length)];
+      usedWords.push(aiWord);
+      lastWord = aiWord;
+      history.innerText += ` → ${aiWord}`;
+
+      if (aiWord.endsWith("ん")) {
+        history.innerText += `\nAIが「ん」で終わりました！あなたの勝ち！`;
+        document.getElementById("input-word").disabled = true;
+      }
+    }
+  </script>
+</body>
+</html>
