@@ -1,0 +1,54 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>しりとり</title>
+</head>
+<body>
+  <h1>しりとりゲーム</h1>
+  <p id="history">最初の言葉を入力してください</p>
+  <input type="text" id="input-word">
+  <button onclick="submitWord()">送信</button>
+
+
+  <script>
+    let lastWord = "";
+    let usedWords = [];
+
+
+    function submitWord() {
+      const input = document.getElementById("input-word");
+      const word = input.value.trim();
+      const history = document.getElementById("history");
+
+
+      if (word === "") return;
+
+
+      if (lastWord && word[0] !== lastWord[lastWord.length - 1]) {
+        alert("前の文字に続いてません");
+        return;
+      }
+
+
+      if (usedWords.includes(word)) {
+        alert("その言葉はもう使われました！");
+        return;
+      }
+
+
+      if (word.endsWith("ん")) {
+        history.innerText += ` → ${word}（ゲームオーバー！）`;
+        input.disabled = true;
+        return;
+      }
+
+
+      usedWords.push(word);
+      lastWord = word;
+      history.innerText += ` → ${word}`;
+      input.value = "";
+    }
+  </script>
+</body>
+</html>
